@@ -1,4 +1,4 @@
-# HealthOmics ECR Helper
+# Amaozn ECR Helper for HealthOmics
 
 This is a simple serverless application that helps automate preparing containers for use with [AWS HealthOmics](https://aws.amazon.com/omics/) Workflows that performs two key functions:
 
