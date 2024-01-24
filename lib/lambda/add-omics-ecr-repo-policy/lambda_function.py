@@ -35,7 +35,7 @@ def lambda_handler(event, context):
     elif event_type == 'AwsApiCall':
         # AwsApiCall
         repository_name = event_detail['requestParameters']['repositoryName']
-        repository_tags = event_detail['requestParameters']['tags']
+        repository_tags = event_detail['requestParameters'].get('tags')
 
         if repository_tags:
             valid_tags = [
