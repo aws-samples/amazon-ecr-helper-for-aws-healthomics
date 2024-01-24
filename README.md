@@ -170,6 +170,11 @@ task task1 {
 Then create and run your workflow using AWS HealthOmics.
 
 
+## Costs
+The Amazon ECR Helper for HealthOmics is a serverless application and does not incur costs when idle.
+
+Any Amazon ECR container image repositories created have a storage cost - see [Amazon ECR pricing](https://aws.amazon.com/ecr/pricing/) for more details.
+
 ## How it works
 
 ### Retrieving container images
