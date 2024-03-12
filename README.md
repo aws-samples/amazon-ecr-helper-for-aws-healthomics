@@ -74,6 +74,8 @@ The state-machine will pull source image uris into your private ECR registry acc
 
 ### Building containers
 
+Note that this process is only necessary if you wish to build containers from scratch rather than simply retreiving them from a public repository as described above.
+
 Create a config file at the root level of this application called `app-config.json` with contents like:
 
 ```json
