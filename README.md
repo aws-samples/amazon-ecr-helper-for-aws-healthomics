@@ -29,7 +29,13 @@ cdk deploy --all --profile <aws-profile>
 
 ```
 
+From here, you can proceed to either:
+- [Retrieving public containers](#retrieving-public-containers)
+- [Building containers](#building-containers)
+
 ### Retriving public containers
+
+This is the most common case, and likely the only functionality of this CDK application you will use.
 
 Create a `container_image_manifest.json` file with contents like:
 
@@ -71,6 +77,8 @@ The state-machine will pull source image uris into your private ECR registry acc
     * An image from DockerHub will be pulled into a repository with the `dockerhub/` namespace 
 
 * Images from other (less common) public registries are not supported at this time
+
+When the `omx-container-puller` state machine completes, and all containers have been pulled into ECR Private successfully, you can can proceed to [configuring and running your workflow](#configure-and-run-workflow).
 
 ### Building containers
 
@@ -226,7 +234,7 @@ To save costs the workflow will only run the CodeBuild project if a requested im
 
 The `container-builder` stack automates building container images using AWS Step Functions and AWS CodeBuild. An ECR private repository is created as needed for the image. It also utilizes the same EventBridge rule, trigger, and Lambda above to add required ECR repository policies.
 
-**Note**: There are no capabilities at this time to check if the image source has changed such that it would result in an updated image relative to an existing one in ECR Private. Therefore. CodeBuild project builds in this stack will always execute when processing a manifest. As a result, if images already exist in ECR Private they will be overwritten.
+**Note**: There are no capabilities at this time to check if the image source has changed such that it would result in an updated image relative to an existing one in ECR Private. Therefore, CodeBuild project builds in this stack will always execute when processing a manifest. As a result, if images already exist in ECR Private they will be overwritten.
 
 ## Development
 
