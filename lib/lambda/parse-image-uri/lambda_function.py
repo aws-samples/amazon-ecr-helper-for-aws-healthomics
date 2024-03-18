@@ -1,5 +1,15 @@
 import json
+import re
 from pprint import pprint
+
+def is_ecr_private_repo(_registry_name):
+    """
+    Detect private registry in format <awsaccountid>.dkr.ecr.<awsregion>.amazonaws.com
+    """
+    tmp = _registry_name.split('.')
+    if re.match('[0-9]{12}\.dkr\.ecr\.[a-zA-Z0-9-]{1,}\.amazonaws\.com', _registry_name) is not None:
+        return True
+    return False
 
 def lambda_handler(event, context):
     pprint(event)
@@ -20,6 +30,9 @@ def lambda_handler(event, context):
     if registry_props.get(registry_name):
         props = registry_props[registry_name]
         ecr_repo_name = "/".join([props['namespace'], image_name])
+    elif is_ecr_private_repo(registry_name):
+        props = { "namespace": None, "pull_through": False }
+        ecr_repo_name = image_name
     else:
         # unrecognized registry, pass it through
         props = { "namespace": None, "pull_through": False }
