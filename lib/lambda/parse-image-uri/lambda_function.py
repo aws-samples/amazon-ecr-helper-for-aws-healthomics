@@ -6,11 +6,8 @@ def is_ecr_private_repo(_registry_name):
     """
     Detect private registry in format <awsaccountid>.dkr.ecr.<awsregion>.amazonaws.com
     """
-    tmp = _registry_name.split('.')
-    if re.match('[0-9]{12}\.dkr\.ecr\.[a-zA-Z0-9-]{1,}\.amazonaws\.com', _registry_name) is not None:
-        return True
-    return False
-
+    return re.match('[0-9]{12}\.dkr\.ecr\.[a-zA-Z0-9-]{1,}\.amazonaws\.com', _registry_name)
+    
 def lambda_handler(event, context):
     pprint(event)
     
