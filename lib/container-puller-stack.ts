@@ -107,15 +107,15 @@ export class ContainerPullerStack extends cdk.Stack {
                             'REGISTRY=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com',
                             
                             // pull through supported uris
-                            '[[ "$PULL_THROUGH_SUPPORTED" == "true" ]] && echo "Materializing image ... $REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG" || true',
-                            '[[ "$PULL_THROUGH_SUPPORTED" == "true" ]] && docker pull $REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG || true',
+                            'if [[ "$PULL_THROUGH_SUPPORTED" == "true" ]]; then echo "Materializing image ... $REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG"; fi',
+                            'if [[ "$PULL_THROUGH_SUPPORTED" == "true" ]]; then docker pull $REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG; fi',
 
                             // other uris
-                            '[[ "$PULL_THROUGH_SUPPORTED" == "false" ]] && echo "Retrieving $SOURCE_URI" || true',
-                            '[[ "$PULL_THROUGH_SUPPORTED" == "false" ]] && docker pull $SOURCE_URI || true',
-                            '[[ "$PULL_THROUGH_SUPPORTED" == "false" ]] && echo "Pushing as $REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG" || true',
-                            '[[ "$PULL_THROUGH_SUPPORTED" == "false" ]] && docker tag $SOURCE_URI $REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG || true',
-                            '[[ "$PULL_THROUGH_SUPPORTED" == "false" ]] && docker push $REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG || true',
+                            'if [[ "$PULL_THROUGH_SUPPORTED" == "false" ]]; then echo "Retrieving $SOURCE_URI"; fi',
+                            'if [[ "$PULL_THROUGH_SUPPORTED" == "false" ]]; then docker pull $SOURCE_URI; fi',
+                            'if [[ "$PULL_THROUGH_SUPPORTED" == "false" ]]; then echo "Pushing as $REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG"; fi',
+                            'if [[ "$PULL_THROUGH_SUPPORTED" == "false" ]]; then docker tag $SOURCE_URI $REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG; fi',
+                            'if [[ "$PULL_THROUGH_SUPPORTED" == "false" ]]; then docker push $REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG; fi',
 
                         ]
                     }
