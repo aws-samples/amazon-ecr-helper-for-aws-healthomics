@@ -83,6 +83,9 @@ export class ContainerPullerStack extends cdk.Stack {
                 privileged: true,
                 environmentVariables: {
                     SOURCE_URI: { value: '' }, 
+                    SOURCE_REGISTRY: { value:  '' },
+                    SOURCE_IS_ECR_PRIVATE: { value: '' },
+                    SOURCE_AWS_REGION: { value: '' },
                     IMAGE_TAG: { value: '' },
                     PULL_THROUGH_SUPPORTED: { value: '' },
                     ECR_REPO_NAME: { value: '' },
@@ -99,7 +102,8 @@ export class ContainerPullerStack extends cdk.Stack {
                         commands: [
                             'echo Logging in to Amazon ECR...',
                             'REGISTRY=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com',
-                            'aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REGISTRY'
+                            'aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REGISTRY',
+                            'if [[ "$SOURCE_IS_ECR_PRIVATE" == "true" ]]; then aws ecr get-login-password --region $SOURCE_AWS_REGION | docker login --username AWS --password-stdin $SOURCE_REGISTRY; fi',
                         ]
                     },
                     build: {
@@ -168,6 +172,9 @@ export class ContainerPullerStack extends cdk.Stack {
 
         const ProcessImageURI = new buildTasks.BuildContainerTask(this, 'Process Image URI', build_project, {
             SOURCE_URI: { value: sfn.JsonPath.stringAt('$.image.source_uri') },
+            SOURCE_REGISTRY: { value: sfn.JsonPath.stringAt('$.image.source_registry') },
+            SOURCE_IS_ECR_PRIVATE: { value: sfn.JsonPath.stringAt('$.image.source_is_ecr_private') },
+            SOURCE_AWS_REGION: { value: sfn.JsonPath.stringAt('$.image.source_aws_region') },
             IMAGE_TAG: { value: sfn.JsonPath.stringAt('$.image.tag') },
             PULL_THROUGH_SUPPORTED: { value: sfn.JsonPath.stringAt('$.image.pull_through_supported') },
             ECR_REPO_NAME: { value: sfn.JsonPath.stringAt('$.image.ecr_repository') }
