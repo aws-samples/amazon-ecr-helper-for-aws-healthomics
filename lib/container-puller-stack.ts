@@ -16,8 +16,12 @@ import * as targets from 'aws-cdk-lib/aws-events-targets';
 import * as buildTasks from './sfn/build-tasks';
 import * as ecrTasks from './sfn/ecr-tasks';
 
+export interface ContainerPullerStackProps extends cdk.StackProps {
+    source_aws_accounts?: string[]
+}
+
 export class ContainerPullerStack extends cdk.Stack {
-    constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+    constructor(scope: Construct, id: string, props?: ContainerPullerStackProps) {
         super(scope, id, props);
 
         // policy for lambda
@@ -141,12 +145,12 @@ export class ContainerPullerStack extends cdk.Stack {
                     "ecr:UploadLayerPart",
                     "ecr:TagResource"
                 ],
+                // "arn:aws:ecr:*:{acct-id}:repository/*",
+                // stack must be deployed per region, so an IAM role per region is used and arn is regionalized
                 resources: [
-                    // "arn:aws:ecr:*:{acct-id}:repository/*",
-                    // stack must be deployed per region, so an IAM role per region is used and arn is regionalized
                     cdk.Arn.format(
-                        {service: "ecr",resource: "repository", resourceName: "*"}, 
-                        this)
+                    {service: "ecr",resource: "repository", resourceName: "*"}, 
+                    this)
                 ],
             }),
             new iam.PolicyStatement({
@@ -160,7 +164,28 @@ export class ContainerPullerStack extends cdk.Stack {
             })
         )
 
+        // x-account ecr private access
+        // this should be read-only, e.g. only allowed to pull images from other accounts
+        if ( props?.source_aws_accounts && props?.source_aws_accounts.length ) {
+            policy_build_project.addStatements(
+                new iam.PolicyStatement({
+                    effect: iam.Effect.ALLOW,
+                    actions: [
+                        "ecr:GetDownloadUrlForLayer",
+                        "ecr:BatchGetImage",
+                        "ecr:BatchCheckLayerAvailability",
+                    ],
+                    resources: props?.source_aws_accounts.map(accountId => {
+                        return cdk.Arn.format(
+                            {account: accountId, service: "ecr", resource: "repository", resourceName: "*"}, 
+                            this) 
+                    })
+                })
+            )
+        }
+
         build_project.role?.attachInlinePolicy(policy_build_project)
+        
 
         // state-machine to prime container images into ECR        
         // // lambda function to parse image names

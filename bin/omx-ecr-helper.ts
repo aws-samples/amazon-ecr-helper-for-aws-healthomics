@@ -13,10 +13,23 @@ import * as fs from 'fs';
 // this is simple for now, but if config gets more complex consider using node-config instead
 const app_config = process.env.CDK_APP_CONFIG || 'app-config.json';
 let source_uris: string[] = [];
+let source_aws_accounts: string[] = [];
 try {
   const config = JSON.parse(fs.readFileSync(app_config, 'utf8'));
-  source_uris = config.container_builder.source_uris;
-  console.log('configuration loaded: ' + app_config)
+  console.log('configuration loaded: ' + app_config);
+
+  const has_container_puller_config = config.hasOwnProperty('container_puller');
+  const has_container_builder_config = config.hasOwnProperty('container_builder');
+
+  if (has_container_puller_config) {
+    console.log('container puller config: ' + has_container_puller_config);
+    source_aws_accounts = config.container_puller.source_aws_accounts;
+  }
+
+  if (has_container_builder_config) {
+    console.log('container builder config: ' + has_container_builder_config)
+    source_uris = config.container_builder.source_uris;
+  }
 
 } catch (error) {
   console.log('no configuration file provided. using defaults.')
@@ -30,6 +43,9 @@ new ContainerPullerStack(app, 'OmxEcrHelper-ContainerPuller', {
     account: process.env.CDK_DEFAULT_ACCOUNT, 
     region: process.env.CDK_DEPLOY_REGION || process.env.CDK_DEFAULT_REGION 
   },
+
+  // additional aws accounts that ecr private container images can be retrieved from
+  source_aws_accounts: source_aws_accounts
 
 });
 

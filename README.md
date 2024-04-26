@@ -31,13 +31,14 @@ cdk deploy --all --profile <aws-profile>
 
 From here, you can proceed to either:
 - [Retrieving public containers](#retrieving-public-containers)
+- [Retrieving ECR private containers](#retrieving-ecr-private-containers)
 - [Building containers](#building-containers)
 
 ### Retriving public containers
 
 This is the most common case, and likely the only functionality of this CDK application you will use.
 
-Create a `container_image_manifest.json` file with contents like:
+Create a `container_pull_manifest.json` file with contents like:
 
 ```json
 {
@@ -58,7 +59,7 @@ Execute the following to pull this list of container images into your ECR privat
 ```bash
 aws stepfunctions start-execution \
     --state-machine-arn arn:aws:states:<aws-region>:<aws-account-id>:stateMachine:omx-container-puller \
-    --input file://container_image_manifest.json
+    --input file://container_pull_manifest.json
 ```
 
 The state-machine will pull source image uris into your private ECR registry according to the following rules:
@@ -79,6 +80,55 @@ The state-machine will pull source image uris into your private ECR registry acc
 * Images from other (less common) public registries are not supported at this time
 
 When the `omx-container-puller` state machine completes, and all containers have been pulled into ECR Private successfully, you can can proceed to [configuring and running your workflow](#configure-and-run-workflow).
+
+### Retrieving ECR Private containers
+
+This process is only necessary if you need to retrieve container images from ECR Private registries, either in your AWS account or from other AWS accounts.
+
+This process works alongside retrieving container images from public registries.
+
+Create a config file at the root level of this application call `app-config.json` with contents like:
+
+```json
+{
+    "container_puller": {
+        "source_aws_accounts": [
+            "111122223333",
+            "444455556666"
+        ]
+    }
+}
+```
+
+The `source_aws_accounts` list specifies other AWS account ids that the application is allowed to pull ECR Private images from. Each account id will resolve to a corresponding ECR Private registry in the region that the CDK application is deployed to.
+
+For the example above, if the CDK application was deployed to the `us-east-1` AWS region, this would be:
+
+```text
+111122223333.dkr.ecr.us-east-1.amazonaws.com
+444455556666.dkr.ecr.us-east-1.amazonaws.com
+```
+
+(Re)deploy the application using:
+
+```bash
+cdk deploy --all
+```
+
+Once deployed you can start an AWS StepFunctions state machine execution as in [Retrieving public containers](#retrieving-public-containers), only now your `container_pull_manifest.json` can contain image URIs like:
+
+```json
+{
+    "manifest": [
+        "111122223333.dkr.ecr.us-east-1.amazonaws.com/foo:1.1.1",
+      	"444455556666.dkr.ecr.us-east-1.amazonaws.com/bar:2.2.2"
+    ]
+}
+```
+
+The state-machine will pull source image uris into your private ECR registry according to the same rules as described in [Retrieving public containers](#retrieving-public-containers). This configuration adds the following:
+
+* Images from other ECR Private registries are replicated in your ECR Private registry as `<your-aws-account-id>.dkr.ecr.<aws-region>.amazonaws.com/<source-ecr-image-repository-name>:<sourc-image-tag>`
 
 ### Building containers
 
