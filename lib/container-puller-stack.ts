@@ -16,8 +16,13 @@ import * as targets from 'aws-cdk-lib/aws-events-targets';
 import * as buildTasks from './sfn/build-tasks';
 import * as ecrTasks from './sfn/ecr-tasks';
 
+export interface ContainerPullerStackProps extends cdk.StackProps {
+    source_aws_accounts?: string[],
+    allow_cross_region_pull?: boolean
+}
+
 export class ContainerPullerStack extends cdk.Stack {
-    constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+    constructor(scope: Construct, id: string, props?: ContainerPullerStackProps) {
         super(scope, id, props);
 
         // policy for lambda
@@ -83,6 +88,9 @@ export class ContainerPullerStack extends cdk.Stack {
                 privileged: true,
                 environmentVariables: {
                     SOURCE_URI: { value: '' }, 
+                    SOURCE_REGISTRY: { value:  '' },
+                    SOURCE_IS_ECR_PRIVATE: { value: '' },
+                    SOURCE_AWS_REGION: { value: '' },
                     IMAGE_TAG: { value: '' },
                     PULL_THROUGH_SUPPORTED: { value: '' },
                     ECR_REPO_NAME: { value: '' },
@@ -99,7 +107,8 @@ export class ContainerPullerStack extends cdk.Stack {
                         commands: [
                             'echo Logging in to Amazon ECR...',
                             'REGISTRY=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com',
-                            'aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REGISTRY'
+                            'aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REGISTRY',
+                            'if [[ "$SOURCE_IS_ECR_PRIVATE" == "true" ]]; then aws ecr get-login-password --region $SOURCE_AWS_REGION | docker login --username AWS --password-stdin $SOURCE_REGISTRY; fi',
                         ]
                     },
                     build: {
@@ -107,15 +116,15 @@ export class ContainerPullerStack extends cdk.Stack {
                             'REGISTRY=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com',
                             
                             // pull through supported uris
-                            '[[ "$PULL_THROUGH_SUPPORTED" == "true" ]] && echo "Materializing image ... $REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG" || true',
-                            '[[ "$PULL_THROUGH_SUPPORTED" == "true" ]] && docker pull $REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG || true',
+                            'if [[ "$PULL_THROUGH_SUPPORTED" == "true" ]]; then echo "Materializing image ... $REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG"; fi',
+                            'if [[ "$PULL_THROUGH_SUPPORTED" == "true" ]]; then docker pull $REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG; fi',
 
                             // other uris
-                            '[[ "$PULL_THROUGH_SUPPORTED" == "false" ]] && echo "Retrieving $SOURCE_URI" || true',
-                            '[[ "$PULL_THROUGH_SUPPORTED" == "false" ]] && docker pull $SOURCE_URI || true',
-                            '[[ "$PULL_THROUGH_SUPPORTED" == "false" ]] && echo "Pushing as $REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG" || true',
-                            '[[ "$PULL_THROUGH_SUPPORTED" == "false" ]] && docker tag $SOURCE_URI $REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG || true',
-                            '[[ "$PULL_THROUGH_SUPPORTED" == "false" ]] && docker push $REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG || true',
+                            'if [[ "$PULL_THROUGH_SUPPORTED" == "false" ]]; then echo "Retrieving $SOURCE_URI"; fi',
+                            'if [[ "$PULL_THROUGH_SUPPORTED" == "false" ]]; then docker pull $SOURCE_URI; fi',
+                            'if [[ "$PULL_THROUGH_SUPPORTED" == "false" ]]; then echo "Pushing as $REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG"; fi',
+                            'if [[ "$PULL_THROUGH_SUPPORTED" == "false" ]]; then docker tag $SOURCE_URI $REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG; fi',
+                            'if [[ "$PULL_THROUGH_SUPPORTED" == "false" ]]; then docker push $REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG; fi',
 
                         ]
                     }
@@ -137,12 +146,12 @@ export class ContainerPullerStack extends cdk.Stack {
                     "ecr:UploadLayerPart",
                     "ecr:TagResource"
                 ],
+                // "arn:aws:ecr:*:{acct-id}:repository/*",
+                // stack must be deployed per region, so an IAM role per region is used and arn is regionalized
                 resources: [
-                    // "arn:aws:ecr:*:{acct-id}:repository/*",
-                    // stack must be deployed per region, so an IAM role per region is used and arn is regionalized
                     cdk.Arn.format(
-                        {service: "ecr",resource: "repository", resourceName: "*"}, 
-                        this)
+                    {service: "ecr",resource: "repository", resourceName: "*"}, 
+                    this)
                 ],
             }),
             new iam.PolicyStatement({
@@ -156,7 +165,29 @@ export class ContainerPullerStack extends cdk.Stack {
             })
         )
 
+        // x-account ecr private access
+        // this should be read-only, e.g. only allowed to pull images from other accounts
+        if ( props?.source_aws_accounts && props?.source_aws_accounts.length ) {
+            const allowed_region: string = props?.allow_cross_region_pull ? "*" : this.region;
+            policy_build_project.addStatements(
+                new iam.PolicyStatement({
+                    effect: iam.Effect.ALLOW,
+                    actions: [
+                        "ecr:GetDownloadUrlForLayer",
+                        "ecr:BatchGetImage",
+                        "ecr:BatchCheckLayerAvailability",
+                    ],
+                    resources: props?.source_aws_accounts.map(accountId => {
+                        return cdk.Arn.format(
+                            {account: accountId, region: allowed_region, service: "ecr", resource: "repository", resourceName: "*"}, 
+                            this) 
+                    })
+                })
+            )
+        }
+
         build_project.role?.attachInlinePolicy(policy_build_project)
+        
 
         // state-machine to prime container images into ECR        
         // // lambda function to parse image names
@@ -168,6 +199,9 @@ export class ContainerPullerStack extends cdk.Stack {
 
         const ProcessImageURI = new buildTasks.BuildContainerTask(this, 'Process Image URI', build_project, {
             SOURCE_URI: { value: sfn.JsonPath.stringAt('$.image.source_uri') },
+            SOURCE_REGISTRY: { value: sfn.JsonPath.stringAt('$.image.source_registry') },
+            SOURCE_IS_ECR_PRIVATE: { value: sfn.JsonPath.stringAt('$.image.source_is_ecr_private') },
+            SOURCE_AWS_REGION: { value: sfn.JsonPath.stringAt('$.image.source_aws_region') },
             IMAGE_TAG: { value: sfn.JsonPath.stringAt('$.image.tag') },
             PULL_THROUGH_SUPPORTED: { value: sfn.JsonPath.stringAt('$.image.pull_through_supported') },
             ECR_REPO_NAME: { value: sfn.JsonPath.stringAt('$.image.ecr_repository') }
