@@ -14,6 +14,7 @@ import * as fs from 'fs';
 const app_config = process.env.CDK_APP_CONFIG || 'app-config.json';
 let source_uris: string[] = [];
 let source_aws_accounts: string[] = [];
+let allow_cross_region_pull: boolean = false;
 try {
   const config = JSON.parse(fs.readFileSync(app_config, 'utf8'));
   console.log('configuration loaded: ' + app_config);
@@ -24,6 +25,8 @@ try {
   if (has_container_puller_config) {
     console.log('container puller config: ' + has_container_puller_config);
     source_aws_accounts = config.container_puller.source_aws_accounts;
+
+    allow_cross_region_pull = config.container_puller.hasOwnProperty('allow_cross_region_pull') ? config.container_puller.allow_cross_region_pull : allow_cross_region_pull;
   }
 
   if (has_container_builder_config) {
@@ -45,7 +48,8 @@ new ContainerPullerStack(app, 'OmxEcrHelper-ContainerPuller', {
   },
 
   // additional aws accounts that ecr private container images can be retrieved from
-  source_aws_accounts: source_aws_accounts
+  source_aws_accounts: source_aws_accounts,
+  allow_cross_region_pull: allow_cross_region_pull
 
 });
 

@@ -100,7 +100,7 @@ Create a config file at the root level of this application call `app-config.json
 }
 ```
 
-The `source_aws_accounts` list specifies other AWS account ids that the application is allowed to pull ECR Private images from. Each account id will resolve to a corresponding ECR Private registry in the region that the CDK application is deployed to.
+The `source_aws_accounts` list specifies other AWS account ids that the application is allowed to pull ECR Private images from. By default, each account id will resolve to a corresponding ECR Private registry in the region that the CDK application is deployed to.
 
 For the example above, if the CDK application was deployed to the `us-east-1` AWS region, this would be:
 
@@ -108,6 +108,22 @@ For the example above, if the CDK application was deployed to the `us-east-1` AW
 111122223333.dkr.ecr.us-east-1.amazonaws.com
 444455556666.dkr.ecr.us-east-1.amazonaws.com
 ```
+
+To allow pulling containers across AWS regions, modify the config to be like:
+
+```json
+{
+    "container_puller": {
+        "source_aws_accounts": [
+            "111122223333",
+            "444455556666"
+        ],
+        "allow_cross_region_pull": true
+    }
+}
+```
+
+> **Note**: Cross-region container image pulls are typically slower and may incur additional cost.
 
 (Re)deploy the application using:
 

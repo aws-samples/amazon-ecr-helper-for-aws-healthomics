@@ -17,7 +17,8 @@ import * as buildTasks from './sfn/build-tasks';
 import * as ecrTasks from './sfn/ecr-tasks';
 
 export interface ContainerPullerStackProps extends cdk.StackProps {
-    source_aws_accounts?: string[]
+    source_aws_accounts?: string[],
+    allow_cross_region_pull?: boolean
 }
 
 export class ContainerPullerStack extends cdk.Stack {
@@ -167,6 +168,7 @@ export class ContainerPullerStack extends cdk.Stack {
         // x-account ecr private access
         // this should be read-only, e.g. only allowed to pull images from other accounts
         if ( props?.source_aws_accounts && props?.source_aws_accounts.length ) {
+            const allowed_region: string = props?.allow_cross_region_pull ? "*" : this.region;
             policy_build_project.addStatements(
                 new iam.PolicyStatement({
                     effect: iam.Effect.ALLOW,
@@ -177,7 +179,7 @@ export class ContainerPullerStack extends cdk.Stack {
                     ],
                     resources: props?.source_aws_accounts.map(accountId => {
                         return cdk.Arn.format(
-                            {account: accountId, service: "ecr", resource: "repository", resourceName: "*"}, 
+                            {account: accountId, region: allowed_region, service: "ecr", resource: "repository", resourceName: "*"}, 
                             this) 
                     })
                 })
