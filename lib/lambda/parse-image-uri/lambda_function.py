@@ -44,7 +44,7 @@ def lambda_handler(event, context):
             "source_uri": uri,
             "source_registry": registry_name,
             "source_is_ecr_private": str(source_is_ecr_private).lower(),
-            "source_aws_region": source_aws_region,
+            "source_aws_region": str(source_aws_region),
             "target_image": ":".join([ecr_repo_name, tag_name]),
             "ecr_repository": ecr_repo_name,
             "tag": tag_name,
