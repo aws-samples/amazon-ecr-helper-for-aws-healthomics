@@ -1,3 +1,21 @@
+# Archive Notice ⚠️
+
+This project is archived and read only. 
+
+## Replacement
+
+The functionality of the project is replaced by [HealthOmics integration with ECR pull though caches](https://docs.aws.amazon.com/omics/latest/dev/workflows-ecr.html#ecr-pull-through). 
+
+## How-To-Guide
+
+A [rePost how-to-guide](https://repost.aws/articles/ARXQCnhzeFTVuL4pgV14SJ-Q/how-to-use-public-container-images-with-aws-healthomics-workflows) offers step by step instructions for setup and use of pull through caches with HealthOmics.
+
+## AI assistance
+
+The [HealthOmics MCP server](https://github.com/awslabs/mcp/tree/main/src/aws-healthomics-mcp-server) has tools that AI agents can use to setup ECR Pull Through caches for use by HealthOmics or clone containers into your ECR private repositories.
+
+---
+
 # Amazon ECR Helper for AWS HealthOmics
 
 This is a simple serverless application that helps automate preparing containers for use with [AWS HealthOmics](https://aws.amazon.com/omics/) Workflows that performs two key functions:
